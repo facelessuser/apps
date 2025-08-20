@@ -374,47 +374,58 @@ const methods = {
 		},
 
 		trace: (orig) => {
+			let raytrace = methods.raytrace.raytrace_box;
 			let coords = orig.coords;
 			let [light, chroma, hue] = coords;
-			coords[1] = 0;
 
-			let anchor = methods.raytrace.oklchToLinearRGB(coords);
-			coords[1] = chroma;
+			// If this were performed within a perceptual space like CAM16, which has achromatics that do not align
+			// with the RGB achromatic line, projecting the color onto the RGB achromatic line may be preferable,
+			// but since OkLCh's achromatics align with all CSS RGB spaces, just set chroma to zero.
+			let anchor = methods.raytrace.oklchToLinearRGB([light, 0, hue]);
 			let mapColor = methods.raytrace.oklchToLinearRGB(coords);
 
-			let raytrace = methods.raytrace.raytrace_box;
-			// Assume an RGB range between 0 - 1.
-			// This could be different depending on the RGB max luminance and could
-			// be calculated to be different depending on needs.
-			// We'll use this to adjust our anchor point closer to the gamut surface.
+			// Calculate bounds to adjust the anchor closer ot the gamut surface.
+			// Assume an RGB range between 0 - 1, but this could be different depending on the RGB max luminance,
+			// and could be calculated to be different depending on needs.
+			// This is desgined to work with any perceptual space, and some are more senstive to evaluating
+			// too close to the surface. OkLCh likely doesn't need a 1e-6 offset, but we keep it for completeness
+			// in case anyone desires to use this with a different perceptual space. 1e-6 is also quite generous
+			// in a 64 bit double and could likely be smaller.
 			let low = 1e-6;
 			let high = 1 - low;
 
 			// Cast a ray from the zero chroma color to the target color.
 			// Trace the line to the RGB cube edge and find where it intersects.
 			// Correct L and h within the perceptual OkLCh after each attempt.
+			let last = mapColor;
 			for (let i = 0; i < 4; i++) {
 				if (i) {
+					// For constant luminance, we correct the color by simply setting lightness and hue to
+					// match the original color. In a non constant luminance reduction, it is better to
+					// project the color onto the reduction path vector.
 					const oklch = methods.raytrace.LinearRGBtoOklch(mapColor);
 					oklch[0] = light
 					oklch[2] = hue;
 					mapColor = methods.raytrace.oklchToLinearRGB(oklch);
 				}
-				const current = mapColor.slice();
-				const intersection = raytrace(anchor, current);
+				const intersection = raytrace(anchor, mapColor);
 
 				// Adjust anchor point closer to surface, when possible, to improve results for some spaces.
-				// But not too close to the surface.
-				if (i && current.every((x) => low < x && x < high)) {
-					anchor = current;
+				if (i && mapColor.every((x) => low < x && x < high)) {
+					anchor = mapColor;
 				}
 
+				// If we have an intersection, update the color.
 				if (intersection.length) {
-					mapColor = intersection.slice();
+					last = mapColor = intersection;
 					continue;
 				}
 
-				// If there was no change, we are done
+				// If we cannot find an intersection, reset to last known color.
+				// This is unlikely to happen with constant luminance reduction in OkLCh, but is included for
+				// completeness as some more quirky perceptual spaces (HCT) can cause this, especially with
+				// non-constant luminance.
+				mapColor = last;
 				break;
 			}
 
