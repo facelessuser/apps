@@ -384,7 +384,7 @@ const methods = {
 			let anchor = methods.raytrace.oklchToLinearRGB([light, 0, hue]);
 			let mapColor = methods.raytrace.oklchToLinearRGB(coords);
 
-			// Calculate bounds to adjust the anchor closer ot the gamut surface.
+			// Calculate bounds to adjust the anchor closer to the gamut surface.
 			// Assume an RGB range between 0 - 1, but this could be different depending on the RGB max luminance,
 			// and could be calculated to be different depending on needs.
 			// This is desgined to work with any perceptual space, and some are more senstive to evaluating
@@ -421,10 +421,12 @@ const methods = {
 					continue;
 				}
 
-				// If we cannot find an intersection, reset to last known color.
-				// This is unlikely to happen with constant luminance reduction in OkLCh, but is included for
-				// completeness as some more quirky perceptual spaces (HCT) can cause this, especially with
-				// non-constant luminance.
+				// If we cannot find an intersection, reset to last successful iteration of the color.
+				// This is unlikely to happen with gamut reduction in the mapping space of OkLCh (or most target
+				// perceptual spaces), especially with constant luminance reduction.
+				// This is provided for catastrophic failures where a specific, perceptual mapping space completely
+				// breaks down due to ridiculously wide colors (outside the visible spectrum). It is expected that
+				// CSS would never trigger this.
 				mapColor = last;
 				break;
 			}
