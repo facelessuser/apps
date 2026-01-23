@@ -410,25 +410,24 @@ const methods = {
 				}
 				const intersection = raytrace(anchor, mapColor);
 
-				// Adjust anchor point closer to surface, when possible, to improve results for some spaces.
-				if (i && mapColor.every((x) => low < x && x < high)) {
-					anchor = mapColor;
-				}
-
-				// If we have an intersection, update the color.
-				if (intersection.length) {
-					last = mapColor = intersection;
-					continue;
-				}
-
 				// If we cannot find an intersection, reset to last successful iteration of the color.
 				// This is unlikely to happen with gamut reduction in the mapping space of OkLCh (or most target
 				// perceptual spaces), especially with constant luminance reduction.
 				// This is provided for catastrophic failures where a specific, perceptual mapping space completely
 				// breaks down due to ridiculously wide colors (outside the visible spectrum). It is expected that
 				// CSS would never trigger this.
-				mapColor = last;
-				break;
+				if (intersection.length === 0) {
+					mapColor = last;
+					break
+				}
+
+				// Adjust anchor point closer to surface, when possible, to improve results for some spaces.
+				if (i && mapColor.every((x) => low < x && x < high)) {
+					anchor = mapColor;
+				}
+
+				// If we have an intersection, update the color.
+				last = mapColor = intersection;
 			}
 
 			// Remove noise from floating point math by clipping
