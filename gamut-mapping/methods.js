@@ -486,7 +486,7 @@ const methods = {
 			}
 
 			// Result should be finite
-			if (!isFinite(tnear)) {
+			if (tnear > 10) {
 				return [];
 			}
 
