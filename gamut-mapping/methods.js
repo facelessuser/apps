@@ -418,7 +418,7 @@ const methods = {
 				// CSS would never trigger this.
 				if (intersection.length === 0) {
 					mapColor = last;
-					break
+					break;
 				}
 
 				// Adjust anchor point closer to surface, when possible, to improve results for some spaces.
@@ -461,7 +461,7 @@ const methods = {
 				direction.push(d);
 
 				// Non parallel cases
-				if (d != 0) {
+				if (Math.abs(d) > 1e-15) {
 					const inv_d = 1 / d;
 					const t1 = (bn - a) * inv_d;
 					const t2 = (bx - a) * inv_d;
@@ -485,8 +485,8 @@ const methods = {
 				tnear = tfar;
 			}
 
-			// Result should be finite
-			if (tnear > 10) {
+			// A point, or something approaching a single point where start and end are the same.
+			if (!isFinite(tnear)) {
 				return [];
 			}
 
